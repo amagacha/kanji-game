@@ -8,7 +8,7 @@ let saveData = JSON.parse(localStorage.getItem("zukan")) || {
 class HomeScene extends Phaser.Scene {
   constructor(){ super("home"); }
   create(){
-    this.add.text(300,80,"漢字おにごっこ",{fontSize:"36px",color:"#000"});
+    this.add.text(280,80,"漢字おにごっこ",{fontSize:"36px",color:"#000"});
     this.makeBtn(300,200,"スタート",()=>this.scene.start("grade"));
     this.makeBtn(300,260,"図鑑",()=>this.scene.start("zukan"));
   }
@@ -68,13 +68,23 @@ class GameScene extends Phaser.Scene {
     this.kanjiList=this.cache.json.get("kanji");
 
     this.player=this.add.rectangle(400,250,40,40,0xff5555);
-    this.enemy=this.add.rectangle(200,200,60,60,0x5078ff);
+
+    this.enemies=[
+      this.add.rectangle(200,200,60,60,0x5078ff),
+      this.add.rectangle(600,300,60,60,0x5078ff)
+    ];
     this.enemyText=this.add.text(0,0,"",{fontSize:"32px",color:"#fff"}).setOrigin(0.5);
 
     this.pickKanji();
 
     this.timerText=this.add.text(10,10,"のこり60秒",{fontSize:"20px",color:"#000"});
     this.yomiText=this.add.text(200,20,"",{fontSize:"20px",color:"#000"});
+
+    this.dash=false;
+    this.dashBtn=this.add.rectangle(720,440,120,40,0xaaaaaa).setInteractive();
+    this.add.text(680,425,"ダッシュ",{fontSize:"18px",color:"#000"});
+    this.dashBtn.on("pointerdown",()=>this.dash=true);
+    this.dashBtn.on("pointerup",()=>this.dash=false);
 
     this.time.addEvent({
       delay:1000, loop:true,
@@ -90,42 +100,43 @@ class GameScene extends Phaser.Scene {
 
     this.input.on("pointermove",p=>{
       if(p.isDown){
-        this.player.x+= (p.x-this.player.x)*0.05;
-        this.player.y+= (p.y-this.player.y)*0.05;
+        let sp=this.dash?0.12:0.06;
+        this.player.x+=(p.x-this.player.x)*sp;
+        this.player.y+=(p.y-this.player.y)*sp;
       }
     });
   }
 
   pickKanji(){
-    let k=Phaser.Utils.Array.GetRandom(this.kanjiList);
-    this.currentKanji=k;
-    this.enemyText.setText(k.kanji);
+    this.currentKanji=Phaser.Utils.Array.GetRandom(this.kanjiList);
+    this.enemyText.setText(this.currentKanji.kanji);
   }
 
   update(){
-    // 敵が追ってくる
-    let dx=this.player.x-this.enemy.x;
-    let dy=this.player.y-this.enemy.y;
-    let d=Math.hypot(dx,dy)+0.01;
-    this.enemy.x+=dx/d*0.4;
-    this.enemy.y+=dy/d*0.4;
+    this.enemies.forEach(e=>{
+      let dx=this.player.x-e.x;
+      let dy=this.player.y-e.y;
+      let d=Math.hypot(dx,dy)+0.01;
+      e.x+=dx/d*0.4;
+      e.y+=dy/d*0.4;
 
-    this.enemyText.setPosition(this.enemy.x,this.enemy.y);
+      if(Phaser.Geom.Intersects.RectangleToRectangle(
+        this.player.getBounds(),e.getBounds())){
 
-    if(Phaser.Geom.Intersects.RectangleToRectangle(
-      this.player.getBounds(),this.enemy.getBounds())){
-
-      if(!saveData[this.grade].includes(this.currentKanji.kanji)){
-        saveData[this.grade].push(this.currentKanji.kanji);
+        if(!saveData[this.grade].includes(this.currentKanji.kanji)){
+          saveData[this.grade].push(this.currentKanji.kanji);
+        }
+        this.yomiText.setText(
+          `訓:${this.currentKanji.kun} / 音:${this.currentKanji.on}`
+        );
+        this.time.delayedCall(3000,()=>this.yomiText.setText(""));
+        this.pickKanji();
+        e.x=Math.random()*700+50;
+        e.y=Math.random()*350+80;
       }
-      this.yomiText.setText(
-        `訓:${this.currentKanji.kun} / 音:${this.currentKanji.on}`
-      );
-      this.time.delayedCall(3000,()=>this.yomiText.setText(""));
-      this.pickKanji();
-      this.enemy.x=Math.random()*700+50;
-      this.enemy.y=Math.random()*350+80;
-    }
+    });
+
+    this.enemyText.setPosition(this.enemies[0].x,this.enemies[0].y);
   }
 }
 
