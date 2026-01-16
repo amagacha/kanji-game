@@ -1,60 +1,23 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>漢字おにごっこ</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>漢字おにごっこ</title>
 
-  <!-- Phaser -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
-  <style>
-    body {
-      margin: 0;
-      background: #dcefff;
-      overflow: hidden;
-    }
-    #stick {
-      position: fixed;
-      left: 20px;
-      bottom: 20px;
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: rgba(0,0,0,0.2);
-      touch-action: none;
-    }
-    #stickInner {
-      position: absolute;
-      left: 40px;
-      top: 40px;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: rgba(0,0,0,0.5);
-    }
-    #dashBtn {
-      position: fixed;
-      right: 20px;
-      bottom: 30px;
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: rgba(255,80,80,0.8);
-      color: white;
-      font-size: 18px;
-      border: none;
-    }
-  </style>
+<style>
+  body {
+    margin: 0;
+    background: #dcefff;
+    touch-action: none;
+  }
+</style>
 </head>
 <body>
 
-<div id="stick">
-  <div id="stickInner"></div>
-</div>
-<button id="dashBtn">ダッシュ</button>
-
 <script src="main.js"></script>
+
 </body>
 </html>
