@@ -60,7 +60,7 @@ class ZukanScene extends Phaser.Scene {
   }
 }
 
-/* ================= ゲーム本体 ================= */
+/* ================= ゲーム ================= */
 class GameScene extends Phaser.Scene {
   constructor(){ super("game"); }
   init(data){
@@ -73,14 +73,11 @@ class GameScene extends Phaser.Scene {
   }
 
   create(){
-    /* ----- 基本 ----- */
     this.timeLeft = 60;
     this.kanjiList = this.cache.json.get("kanji");
 
-    /* ----- プレイヤー ----- */
     this.player = this.add.rectangle(400,250,40,40,0xff5555);
 
-    /* ----- 敵 ----- */
     this.enemies=[];
     this.enemyTexts=[];
     this.enemyDirs=[];
@@ -92,7 +89,6 @@ class GameScene extends Phaser.Scene {
         60,60,0x5078ff
       );
       let t=this.add.text(e.x,e.y,"",{fontSize:"32px",color:"#fff"}).setOrigin(0.5);
-
       this.enemies.push(e);
       this.enemyTexts.push(t);
       this.enemyDirs.push({
@@ -103,11 +99,9 @@ class GameScene extends Phaser.Scene {
 
     this.pickKanji();
 
-    /* ----- 表示 ----- */
     this.timerText=this.add.text(10,10,"のこり60秒",{fontSize:"20px",color:"#000"});
     this.yomiText=this.add.text(200,20,"",{fontSize:"20px",color:"#000"});
 
-    /* ----- タイマー ----- */
     this.time.addEvent({
       delay:1000,
       loop:true,
@@ -121,7 +115,7 @@ class GameScene extends Phaser.Scene {
       }
     });
 
-    /* ----- タッチ移動（どこでもOK） ----- */
+    /* タッチ移動（どこでもOK） */
     this.input.on("pointermove",p=>{
       if(p.isDown){
         this.player.x += (p.x-this.player.x)*0.1;
@@ -137,7 +131,6 @@ class GameScene extends Phaser.Scene {
   }
 
   update(){
-    /* ===== 敵は追ってこない（ランダム移動） ===== */
     this.enemies.forEach((e,i)=>{
       let dir=this.enemyDirs[i];
       e.x+=dir.x*0.5;
@@ -148,7 +141,6 @@ class GameScene extends Phaser.Scene {
 
       this.enemyTexts[i].setPosition(e.x,e.y);
 
-      /* ----- 当たり判定 ----- */
       if(Phaser.Geom.Intersects.RectangleToRectangle(
         this.player.getBounds(),e.getBounds()
       )){
@@ -169,13 +161,10 @@ class GameScene extends Phaser.Scene {
   }
 }
 
-/* ================= 起動 ================= */
-const config={
+new Phaser.Game({
   type:Phaser.AUTO,
   width:WIDTH,
   height:HEIGHT,
   backgroundColor:"#dcefff",
   scene:[HomeScene,GradeScene,GameScene,ZukanScene]
-};
-
-new Phaser.Game(config);
+});
