@@ -9,7 +9,7 @@ let saveData = JSON.parse(localStorage.getItem("zukan")) || {
 class HomeScene extends Phaser.Scene {
   constructor(){ super("home"); }
   create(){
-    this.add.text(280,80,"漢字おにごっこ",{fontSize:"36px",color:"#000"});
+    this.add.text(260,80,"漢字おにごっこ",{fontSize:"36px",color:"#000"});
     this.btn(300,200,"スタート",()=>this.scene.start("grade"));
     this.btn(300,260,"図鑑",()=>this.scene.start("zukan"));
   }
@@ -27,9 +27,8 @@ class GradeScene extends Phaser.Scene {
     this.add.text(260,40,"学年をえらんでね",{fontSize:"28px",color:"#000"});
     for(let i=1;i<=6;i++){
       this.btn(300,80+i*45,`小学${i}年`,
-        ()=>this.scene.start("enemy",{grade:i}));
+        ()=>this.scene.start("difficulty",{grade:i}));
     }
-    this.btn(300,HEIGHT-60,"ホームへ",()=>this.scene.start("home"));
   }
   btn(x,y,t,cb){
     let r=this.add.rectangle(x+100,y+20,200,40,0xaaaaaa).setInteractive();
@@ -38,21 +37,18 @@ class GradeScene extends Phaser.Scene {
   }
 }
 
-// ---------------- ENEMY COUNT ----------------
-class EnemySelectScene extends Phaser.Scene {
-  constructor(){ super("enemy"); }
+// ---------------- DIFFICULTY ----------------
+class DifficultyScene extends Phaser.Scene {
+  constructor(){ super("difficulty"); }
   init(d){ this.grade=d.grade; }
   create(){
-    this.add.text(220,50,"敵の数をえらんでね",{fontSize:"28px",color:"#000"});
-    for(let i=1;i<=5;i++){
-      this.btn(300,100+i*45,`${i}体`,
-        ()=>this.scene.start("game",{grade:this.grade,count:i}));
-    }
-    this.btn(300,HEIGHT-60,"戻る",()=>this.scene.start("grade"));
+    this.add.text(260,80,"むずかしさ",{fontSize:"28px",color:"#000"});
+    this.btn(300,180,"やさしい",()=>this.scene.start("game",{grade:this.grade,mode:"easy"}));
+    this.btn(300,240,"ふつう",()=>this.scene.start("game",{grade:this.grade,mode:"normal"}));
   }
   btn(x,y,t,cb){
-    let r=this.add.rectangle(x+100,y+20,200,40,0xaaaaaa).setInteractive();
-    this.add.text(x+60,y+5,t,{fontSize:"20px",color:"#000"});
+    let r=this.add.rectangle(x+100,y+25,200,50,0xaaaaaa).setInteractive();
+    this.add.text(x+50,y+10,t,{fontSize:"22px",color:"#000"});
     r.on("pointerup",cb);
   }
 }
@@ -83,133 +79,93 @@ class GameScene extends Phaser.Scene {
   constructor(){ super("game"); }
   init(d){
     this.grade=d.grade;
-    this.enemyCount=d.count;
+    this.mode=d.mode;
   }
 
   preload(){
-    this.load.json("kanji",`kanji/kanji_${this.grade}.json`);
-    this.load.audio("pon","assets/pon.mp3");
+    this.load.json("kanji",`kanji_${this.grade}.json`);
   }
 
   create(){
-    this.timeLeft=60;
     this.kanjiList=this.cache.json.get("kanji");
-
     this.player=this.add.rectangle(400,250,40,40,0xff5555);
 
-    this.enemies=[];
-    this.enemyTexts=[];
-
-    for(let i=0;i<this.enemyCount;i++){
-      let e=this.add.rectangle(
-        Phaser.Math.Between(50,750),
-        Phaser.Math.Between(80,450),
-        60,60,0x5078ff
-      );
-      let t=this.add.text(0,0,"",{fontSize:"32px",color:"#fff"}).setOrigin(0.5);
-      this.enemies.push(e);
-      this.enemyTexts.push(t);
-    }
+    this.enemy=this.add.rectangle(200,200,60,60,0x5078ff);
+    this.enemyText=this.add.text(0,0,"",{fontSize:"32px",color:"#fff"}).setOrigin(0.5);
 
     this.pickKanji();
 
-    this.timerText=this.add.text(10,10,"のこり60秒",{fontSize:"20px",color:"#000"});
+    this.timeLeft = this.mode==="easy" ? 90 : 60;
+    this.enemySpeed = this.mode==="easy" ? 0.25 : 0.45;
+
+    this.timerText=this.add.text(10,10,"",{fontSize:"20px",color:"#000"});
     this.yomiText=this.add.text(200,20,"",{fontSize:"20px",color:"#000"});
 
-    this.pon=this.sound.add("pon");
+    // バーチャルスティック
+    this.stickBase=null;
+    this.stickKnob=null;
 
-    // ダッシュ
-    this.dash=false;
-    let dashBtn=this.add.rectangle(720,420,120,40,0xaaaaaa).setInteractive();
-    this.add.text(690,410,"ダッシュ",{fontSize:"16px",color:"#000"});
-    dashBtn.on("pointerdown",()=>this.dash=true);
-    dashBtn.on("pointerup",()=>this.dash=false);
-
-    // タイマー
-    this.time.addEvent({
-      delay:1000, loop:true,
-      callback:()=>{
-        this.timeLeft--;
-        this.timerText.setText(`のこり${this.timeLeft}秒`);
-        if(this.timeLeft<=0){
-          localStorage.setItem("zukan",JSON.stringify(saveData));
-          this.scene.start("home");
-        }
+    this.input.on("pointerdown",p=>{
+      if(p.x<WIDTH/2){
+        this.stickBase=this.add.circle(p.x,p.y,50,0x999999,0.4);
+        this.stickKnob=this.add.circle(p.x,p.y,20,0x666666,0.7);
       }
     });
 
-    // 指追従移動（スマホ）
+    this.input.on("pointerup",()=>{
+      this.stickBase?.destroy();
+      this.stickKnob?.destroy();
+      this.stickBase=this.stickKnob=null;
+    });
+
     this.input.on("pointermove",p=>{
-      if(p.isDown){
-        let sp=this.dash?0.12:0.06;
-        this.player.x+=(p.x-this.player.x)*sp;
-        this.player.y+=(p.y-this.player.y)*sp;
+      if(this.stickBase){
+        let dx=p.x-this.stickBase.x;
+        let dy=p.y-this.stickBase.y;
+        let d=Math.hypot(dx,dy);
+        if(d>40){ dx*=40/d; dy*=40/d; }
+        this.stickKnob.setPosition(this.stickBase.x+dx,this.stickBase.y+dy);
+        this.player.x+=dx*0.05;
+        this.player.y+=dy*0.05;
       }
     });
   }
 
   pickKanji(){
     this.currentKanji=Phaser.Utils.Array.GetRandom(this.kanjiList);
-    this.enemyTexts.forEach(t=>t.setText(this.currentKanji.kanji));
+    this.enemyText.setText(this.currentKanji.kanji);
   }
 
   update(){
-    let speedBase=0.4+(60-this.timeLeft)*0.01;
+    this.timerText.setText(`のこり${this.timeLeft}秒`);
+    let dx=this.player.x-this.enemy.x;
+    let dy=this.player.y-this.enemy.y;
+    let d=Math.hypot(dx,dy)+0.01;
+    this.enemy.x+=dx/d*this.enemySpeed;
+    this.enemy.y+=dy/d*this.enemySpeed;
+    this.enemyText.setPosition(this.enemy.x,this.enemy.y);
 
-    this.enemies.forEach((e,i)=>{
-      let dx=this.player.x-e.x;
-      let dy=this.player.y-e.y;
-      let d=Math.hypot(dx,dy)+0.01;
-      e.x+=dx/d*speedBase;
-      e.y+=dy/d*speedBase;
-      this.enemyTexts[i].setPosition(e.x,e.y);
-
-      if(Phaser.Geom.Intersects.RectangleToRectangle(
-        this.player.getBounds(), e.getBounds()
-      )){
-        this.catchEnemy(e,i);
+    if(Phaser.Geom.Intersects.RectangleToRectangle(
+      this.player.getBounds(),this.enemy.getBounds()
+    )){
+      if(!saveData[this.grade].includes(this.currentKanji.kanji)){
+        saveData[this.grade].push(this.currentKanji.kanji);
+        localStorage.setItem("zukan",JSON.stringify(saveData));
       }
-    });
-  }
-
-  catchEnemy(e,i){
-    this.pon.play();
-
-    if(!saveData[this.grade].includes(this.currentKanji.kanji)){
-      saveData[this.grade].push(this.currentKanji.kanji);
+      this.yomiText.setText(`訓:${this.currentKanji.kun} 音:${this.currentKanji.on}`);
+      this.time.delayedCall(3000,()=>this.yomiText.setText(""));
+      this.pickKanji();
+      this.enemy.x=Phaser.Math.Between(50,750);
+      this.enemy.y=Phaser.Math.Between(80,450);
     }
-
-    this.yomiText.setText(
-      `訓:${this.currentKanji.kun} / 音:${this.currentKanji.on}`
-    );
-    this.time.delayedCall(3000,()=>this.yomiText.setText(""));
-
-    this.tweens.add({
-      targets:[e,this.enemyTexts[i]],
-      alpha:0, scale:0.2, duration:300,
-      onComplete:()=>{
-        e.setAlpha(1).setScale(1);
-        this.enemyTexts[i].setAlpha(1).setScale(1);
-        e.x=Phaser.Math.Between(50,750);
-        e.y=Phaser.Math.Between(80,450);
-      }
-    });
-
-    this.pickKanji();
   }
 }
 
-// ---------------- CONFIG ----------------
+// ---------------- START ----------------
 new Phaser.Game({
   type: Phaser.AUTO,
   width: WIDTH,
   height: HEIGHT,
   backgroundColor: "#dcefff",
-  scene: [
-    HomeScene,
-    GradeScene,
-    EnemySelectScene,
-    GameScene,
-    ZukanScene
-  ]
+  scene: [HomeScene,GradeScene,DifficultyScene,GameScene,ZukanScene]
 });
